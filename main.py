@@ -2,7 +2,6 @@
 #technically works!
 #port 42069
 
-
 import psycopg2
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -12,13 +11,21 @@ import toml
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static") #logo and favicon go here
 
-CONFIG = toml.load("./config.toml") #load variables from toml file
+CONFIG = toml.load("./config.toml") # load variables from toml file
 CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
-TEST_WORD = "AGENT" #5 letter word, all caps. 
+
+TEST_WORD = "HEART" #5 letter word, all caps. This is the word the users are trying to guess.
 
 WORDS = []
+ROW_1 = "QWERTYUIOP"
+ROW_2 = "ASDFGHJKL"
+ROW_3 = "ZXCVBNM"
+ALPHA_COLORS_1 = {letter: "white" for letter in ROW_1}
+ALPHA_COLORS_2 = {letter: "white" for letter in ROW_2}
+ALPHA_COLORS_3 = {letter: "white" for letter in ROW_3}
 
-with open('WORDS.txt', 'r') as file:
+
+with open('WORDS.txt', 'r') as file: # loads up dictionary of good 5 letter words. prevents users from spamming guesses with gibberish. 
     lines = file.readlines()
     for line in lines:
         WORDS.append(line.strip())
@@ -45,17 +52,20 @@ async def get_form(request: Request) -> HTMLResponse:
 table {
     margin-bottom: 10px;
     margin-top: 10px;
-
 }
 
 .letters {
-    position: fixed;
+    position: absolute;
     bottom: 0;
-    
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  vertical-align: middle;
 }
 
-span {
 
+span {
     margin-left: 5px;
 }
 
@@ -66,22 +76,25 @@ body {
 		place-items: center;
 		background-color: lightgray;
 	}
-    div {
+
+div {
 		text-align: center;
         margin-bottom: 10px;
 	}
- th, tr {
-    padding-right: 15;
-    text-align: center;
+
+tr {
     border: solid;
     font-size: 24px;
+    text-align: center;
     }
 
-    td {
+td {
     background-color: white;
     border: 2px solid;
     white-space: pre-line;
-    text-align : center;}
+    text-align: center;
+    }
+
 
 </style>
 
@@ -89,9 +102,9 @@ body {
 <link rel="icon" type = "image/x-icon" href="/static/favicon.ico">
 <body>
     <h1>Clay's Wordle-like Game That Is Legally Distinct from Wordle!</h1>
-	<div><img src="/static/dhr-logo.png" alt = "DHR Logo" width = "25%" height = "25%"></div>
+	<div><img src="/static/dhr-logo.png" alt = "DHR Logo" width = "20%" height = "20%"></div>
     <h3>HINTS:</h3>
-    <div>Call Center!</div>
+    <div>Body part!</div><div style = "margin-bottom: 50px;"></div>
     """
 
     QUERY = "SELECT attempts, won FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
@@ -106,7 +119,7 @@ body {
         solved = False
     if user_attempts < 6 and not solved:
         html_content +=  """    <form id="myForm" method = "POST" action = "/guess">
-		<label>Guess here: <input  style="margin-bottom: 50px;" type = "text" id = "myInput" name = "guess" minlength = "5" maxlength="5" onkeypress="return isAlphabet(event)" required></label>
+		<label>Guess here: <input autofocus  style="margin-bottom: 50px;" type = "text" id = "myInput" name = "guess" minlength = "5" maxlength="5" onkeypress="return isAlphabet(event)" required></label>
 		<span></span><button type = "submit" id = "myBtn">Guess word!</button>        
         </form>
 
@@ -169,9 +182,7 @@ body {
 
     html_content +="""   </table>
     <div class="letters">LETTERS TRIED SO FAR
-                    <table>
-                        <tr>
-
+                <table class="attempted_letters">
     """ 
     con = psycopg2.connect(CONNECT_STR)
     cur = con.cursor()
@@ -181,48 +192,46 @@ body {
     result = cur.fetchone()
     try:
         letters_used = result[0] # type: ignore
-
         for letter in letters_used:
-            color = "gray"
-            if letter in TEST_WORD:
-                color = "yellow"
-            html_content += f"""
-                    <td style="background-color: {color}; padding: 5px;"<b> {letter}</td>
-    """
+            if letter not in TEST_WORD:            
+                if letter in ROW_1:
+                    ALPHA_COLORS_1[letter] = 'gray'
+                if letter in ROW_2:
+                    ALPHA_COLORS_2[letter] = 'gray'
+                if letter in ROW_3:
+                    ALPHA_COLORS_3[letter] = 'gray'
+            if letter in TEST_WORD:            
+                if letter in ROW_1:
+                    ALPHA_COLORS_1[letter] = 'yellow'
+                if letter in ROW_2:
+                    ALPHA_COLORS_2[letter] = 'yellow'
+                if letter in ROW_3:
+                    ALPHA_COLORS_3[letter] = 'yellow'
+    except Exception as e:
+        for key in ALPHA_COLORS_1:
+            ALPHA_COLORS_1[key] = "white"
+        for key in ALPHA_COLORS_2:
+            ALPHA_COLORS_2[key] = "white"
+        for key in ALPHA_COLORS_3:
+            ALPHA_COLORS_3[key] = "white"
+        print("User has made no attempts yet, probably.")
+    html_content += "<tr>"
+    for key in ALPHA_COLORS_1:
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS_1[key]}; padding: 5px;"<b> {key}</td>'''
+    html_content += '<td style ="background-color: white; padding: 0px;"><img src="/static/la jaiba.png" alt = "JAIBA!" width = "25px" height = "25px"> </td></tr>'
 
-        html_content += """</tr>
-        </table></div>
+    html_content += '<tr><td style="max-width: 5px; background-color: lightgray; padding: 5px; border: 0px;"</td>'
+    for key in ALPHA_COLORS_2:
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS_2[key]}; padding: 5px;"<b> {key}</td>'''
+    html_content += "</tr>"
+
+    html_content += '<tr><td style="background-color: lightgray; padding: 5px; border: 0px;"</td><td style="background-color: lightgray; padding: 5px; border: 0px;"</td>'
+    for key in ALPHA_COLORS_3:
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS_3[key]}; padding: 5px;"<b> {key}</td>'''
+    
+    html_content += """</tr></table>
         
  <script>
-
-        const myInput = document.getElementById('myInput');
-        const myForm = document.getElementById('myForm');
-        const myBtn = document.getElementById('myBtn');
-
-        myInput.addEventListener('keydown', function(event) {
-    if (event.key === 'Enter') {
-        myBtn.click();
-    }
-  });
-
-
-        function isAlphabet(event) {
-        var charCode = (event.which) ? event.which : event.keyCode;
-        if ((charCode >= 65 && charCode <= 90) || (charCode >= 97 && charCode <= 122)) {
-            return true; 
-        }
-        return false;
-        }
-               
-</script>
-                </body>
-            </html>"""
-    except:
-         html_content += """</tr>
-        </table>
-        
- <script>
-
         const myInput = document.getElementById('myInput');
         const myForm = document.getElementById('myForm');
         const myBtn = document.getElementById('myBtn');
