@@ -1,0 +1,281 @@
+#wordle-like
+#no idea how to do this so i'll just give it my best
+#port 42069
+
+
+import psycopg2
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from datetime import datetime
+import toml
+
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static") #logo and favicon go here
+
+CONFIG = toml.load("./config.toml") #load variables from toml file
+CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
+TEST_WORD = "DRAWS"
+
+WORDS = []
+
+with open('WORDS.txt', 'r') as file:
+    lines = file.readlines()
+    for line in lines:
+        WORDS.append(line.strip())
+
+@app.on_event("startup")
+async def startup_event():
+    try:
+        init_db()
+    except Exception as e:
+        print(e)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def get_form(request: Request) -> HTMLResponse:
+    user_ip = request.client.host
+    con = psycopg2.connect(CONNECT_STR)
+    cur = con.cursor()
+    
+    html_content = """
+<!DOCTYPE html>
+<html>
+<head><meta charset = "UTF-8">
+<style>
+body {
+		margin: 0;
+		display: grid;
+		min-height: 10vh;
+		place-items: center;
+		background-color: lightgray;
+	}
+    div {
+		text-align: center;
+	}
+ th, tr {
+    padding-right: 15;
+    text-align: center;
+    border: solid;
+    font-size: 24px;
+    }
+
+    td {
+    background-color: white;
+    border: 2px solid;
+    white-space: pre-line;
+    text-align : center;}
+
+</style>
+
+<title>Wordle Wannabe</title></head>
+<link rel="icon" type = "image/x-icon" href="/static/favicon.ico">
+<body>
+    <h1>Wordle</h1>
+	<div><img src="/static/dhr-logo.png" alt = "DHR Logo" width = "25%" height = "25%"></div>
+    """
+
+    QUERY = "SELECT attempts, won FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
+    DATA = (user_ip, )
+    cur.execute(QUERY, DATA)
+    result = cur.fetchone()
+    try:
+        print(result)
+        user_attempts = result[0] # type: ignore
+        solved = result[1] # type: ignore
+    except: #catches if user has not made any attempts
+        user_attempts = 0
+        solved = False
+    if user_attempts < 6 and not solved: 
+        html_content +=  """    <form id="myForm" method = "POST" action = "/guess">
+		<label>Guess here: <input type = "text" id = "myInput" name = "guess" minlength = "5" maxlength="5" onkeypress="return isAlphabet(event)" required></label><br>
+		<button type = "submit" id = "myBtn">Guess word!</button>        
+        </form><br><br><br>
+
+        <script>
+
+        const myInput = document.getElementById('myInput');
+        const myForm = document.getElementById('myForm');
+        const myBtn = document.getElementById('myBtn');
+
+        myInput.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+        myBtn.click();
+    }
+  });
+
+
+        function isAlphabet(event) {
+        var charCode = (event.which) ? event.which : event.keyCode;
+        if ((charCode >= 65 && charCode <= 90) || (charCode >= 97 && charCode <= 122)) {
+            return true; 
+        }
+        return false;
+        }
+               
+        async function refreshPage() {
+        console.log("Attempting page refresh.");
+        window.location.href = window.location.href;
+        window.location.href = window.location.href;
+}
+        myForm.addEventListener('submit', refreshPage);
+
+</script>
+        """
+
+    attempted_words: list[str] = []
+    x = 1
+    while x <= user_attempts:
+        QUERY = f"SELECT attempt_{x} FROM wordle WHERE (ip_address = '{user_ip}' AND attempt_date = CURRENT_DATE);"
+        cur.execute(QUERY)
+        result = cur.fetchone()
+        attempted_words.append(result[0]) # type: ignore
+        x += 1    
+
+    for word in attempted_words:
+        color_1 = "gray"
+        color_2 = "gray"
+        color_3 = "gray"
+        color_4 = "gray"
+        color_5 = "gray"
+        for i in range(5):
+            if word[i] in TEST_WORD:
+                match i:
+                    case 0:
+                        color_1 = "yellow"
+                    case 1:
+                        color_2 = "yellow"
+                    case 2:
+                        color_3 = "yellow"
+                    case 3:
+                        color_4 = "yellow"
+                    case 4:
+                        color_5 = "yellow"
+            if word[i] == TEST_WORD[i]:
+                match i:
+                    case 0:
+                        color_1 = "green"
+                    case 1:
+                        color_2 = "green"
+                    case 2:
+                        color_3 = "green"
+                    case 3:
+                        color_4 = "green"
+                    case 4:
+                        color_5 = "green"
+        html_content += f""" <table>
+                <tr>
+                    <td style="background-color: {color_1}; padding: 5px;" <b> {word[0]}</td>
+                    <td style="background-color: {color_2};padding: 5px;" <b> {word[1]}</td>
+                    <td style="background-color: {color_3};padding: 5px;" <b> {word[2]}</td>
+                    <td style="background-color: {color_4};padding: 5px;" <b> {word[3]}</td>
+                    <td style="background-color: {color_5};padding: 5px;" <b> {word[4]}</td>
+                </tr>
+"""
+        if word == TEST_WORD:
+            con = psycopg2.connect(CONNECT_STR)
+            cur = con.cursor()
+            QUERY = "UPDATE wordle SET won = True WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
+            DATA = (user_ip, )
+            cur.execute(QUERY, DATA)
+            cur.close()
+            con.commit()
+            html_content += "</table><br><br>YOU GOT THE WORD!!!! A WINNER IS YOU!"
+        if user_attempts == 6:
+            html_content += "</table><br><br><div>You ran out of attempts! Try again tomorrow!</div>"
+
+    html_content +="""   </table>
+    <br><br><div>LETTERS USED</div>
+                    <table>
+                        <tr>
+
+    """ 
+    con = psycopg2.connect(CONNECT_STR)
+    cur = con.cursor()
+    QUERY = "SELECT letters_used FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
+    DATA = (user_ip, )
+    cur.execute(QUERY, DATA)
+    result = cur.fetchone()
+    try:
+        letters_used = result[0] # type: ignore
+
+        for letter in letters_used:
+            color = "gray"
+            if letter in TEST_WORD:
+                color = "yellow"
+            html_content += f"""
+                    <td style="background-color: {color}; padding: 5px;"<b> {letter}</td>
+    """
+
+        html_content += """</tr>
+        </table>
+                </body>
+            </html>"""
+    except:
+         html_content += """</tr>
+        </table>
+                </body>
+            </html>"""
+    return HTMLResponse(content = html_content)
+
+
+@app.post("/guess")
+async def process_guess(request: Request, guess: str = Form(...)):
+    user_ip = request.client.host
+    con = psycopg2.connect(CONNECT_STR)
+    cur = con.cursor()
+
+    if guess.lower() in WORDS:
+        try: 
+            QUERY = "SELECT attempts, letters_used FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
+            DATA = (user_ip, )
+            cur.execute(QUERY, DATA)
+            result = cur.fetchone()
+            no_of_attempts: int = result[0] # type: ignore
+            attempted_letters = result[1] # type: ignore
+            attempt_number = no_of_attempts + 1
+            for letter in guess.upper():
+                if letter not in attempted_letters:
+                    attempted_letters += letter
+            sorted_letters = sorted(attempted_letters)
+            sorted_string = "".join(sorted_letters)
+
+            QUERY = f"UPDATE wordle SET attempts = '{attempt_number}', attempt_{attempt_number} = '{guess.upper()}',  letters_used = '{sorted_string}' WHERE (ip_address = '{user_ip}' AND attempt_date = CURRENT_DATE);"
+            cur.execute(QUERY)
+            cur.close()
+            con.commit()
+        except:
+            attempted_letters = ""
+            for letter in guess:
+                if letter not in attempted_letters:
+                    attempted_letters += letter
+            QUERY = "INSERT INTO wordle (ip_address, attempt_1, letters_used) VALUES (%s, %s, %s);"
+            DATA = (user_ip, guess.upper(), attempted_letters.upper())
+            cur.execute(QUERY, DATA)
+            cur.close()
+            con.commit()
+        return RedirectResponse(url="/", status_code=303)
+    else:
+        return HTMLResponse(content=f"{guess} is not an acceptable word. If you think this is a mistake, please tell Clay about it along with the word you used.<br>Go back and try another word.")
+
+def init_db():
+    con = psycopg2.connect(CONNECT_STR)
+    cur = con.cursor()
+    cur.execute('''CREATE TABLE IF NOT EXISTS wordle 
+                (id SERIAL PRIMARY KEY, 
+                ip_address INET,
+                attempts INT DEFAULT 1,
+                attempt_1 TEXT,
+                attempt_2 TEXT,
+                attempt_3 TEXT,
+                attempt_4 TEXT,
+                attempt_5 TEXT,
+                attempt_6 TEXT,
+                attempt_date DATE DEFAULT CURRENT_DATE,
+                letters_used TEXT,
+                won BOOLEAN DEFAULT FALSE,
+                word_of_day TEXT)
+                ;'''
+            )
+    cur.close()
+    con.commit()
