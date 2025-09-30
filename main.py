@@ -14,7 +14,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static") #logo and f
 CONFIG = toml.load("./config.toml") # load variables from toml file
 CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
 
-TEST_WORD = "HEART" #5 letter word, all caps. This is the word the users are trying to guess.
+TEST_WORD = "QUEUE" #5 letter word, all caps. This is the word the users are trying to guess.
+HINT = "Where calls wait!" #the hint you can show to users to guide them towards the correct answer
 
 WORDS = []
 ROW_1 = "QWERTYUIOP"
@@ -23,7 +24,6 @@ ROW_3 = "ZXCVBNM"
 ALPHA_COLORS_1 = {letter: "white" for letter in ROW_1}
 ALPHA_COLORS_2 = {letter: "white" for letter in ROW_2}
 ALPHA_COLORS_3 = {letter: "white" for letter in ROW_3}
-
 
 with open('WORDS.txt', 'r') as file: # loads up dictionary of good 5 letter words. prevents users from spamming guesses with gibberish. 
     lines = file.readlines()
@@ -36,7 +36,6 @@ async def startup_event():
         init_db()
     except Exception as e:
         print(e)
-
 
 @app.get("/", response_class=HTMLResponse)
 async def get_form(request: Request) -> HTMLResponse:
@@ -63,7 +62,6 @@ table {
     text-align: center;
   vertical-align: middle;
 }
-
 
 span {
     margin-left: 5px;
@@ -94,18 +92,16 @@ td {
     white-space: pre-line;
     text-align: center;
     }
-
-
 </style>
 
 <title>Wordle Wannabe</title></head>
 <link rel="icon" type = "image/x-icon" href="/static/favicon.ico">
 <body>
     <h1>Clay's Wordle-like Game That Is Legally Distinct from Wordle!</h1>
-	<div><img src="/static/dhr-logo.png" alt = "DHR Logo" width = "20%" height = "20%"></div>
+	<div><img src="/static/dhr-logo.png" alt = "DHR Logo" width = "426px" height = "116px"></div>
     <h3>HINTS:</h3>
-    <div>Body part!</div><div style = "margin-bottom: 50px;"></div>
-    """
+    <div>%s</div><div style = "margin-bottom: 50px;"></div>
+    """ % (HINT,)
 
     QUERY = "SELECT attempts, won FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
     DATA = (user_ip, )
@@ -242,7 +238,6 @@ td {
     }
   });
 
-
         function isAlphabet(event) {
         var charCode = (event.which) ? event.which : event.keyCode;
         if ((charCode >= 65 && charCode <= 90) || (charCode >= 97 && charCode <= 122)) {
@@ -260,11 +255,8 @@ td {
 
 </script>
                 </body>
-
-
             </html>"""
     return HTMLResponse(content = html_content)
-
 
 @app.post("/guess")
 async def process_guess(request: Request, guess: str = Form(...)):
