@@ -1,0 +1,13 @@
+[credentials]
+host = '10.200.23.11'
+dbname = 'responses'
+username = 'apps'
+password = 'DHRhealth!#%'
+
+[first_try_messages]
+1 = "You cheated, didn't you? I'm telling Benny."
+2 = "Be honest - someone gave you the answer, didn't they?"
+3 = "Did I make this too easy?"
+4 = "Lucky guess!"
+5 = "Not bad. Now get back to work!"
+6 = "Heck yeah! Now if only calls were this eays, huh?"

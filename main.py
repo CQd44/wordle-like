@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import toml
+from random import randint
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static") #logo and favicon go here
@@ -14,8 +15,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static") #logo and f
 CONFIG = toml.load("./config.toml") # load variables from toml file
 CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
 
-TEST_WORD = "QUEUE" #5 letter word, all caps. This is the word the users are trying to guess.
-HINT = "Where calls wait!" #the hint you can show to users to guide them towards the correct answer
+TEST_WORD = "AORTA" #5 letter word, all caps. This is the word the users are trying to guess.
+HINT = "Major artery!" #the hint you can show to users to guide them towards the correct answer
 
 WORDS = []
 ROW_1 = "QWERTYUIOP"
@@ -172,7 +173,7 @@ td {
         if word == TEST_WORD and user_attempts > 1:
             html_content += "</table><div>YOU GOT THE WORD!!!! A WINNER IS YOU!</div>"
         elif word == TEST_WORD and user_attempts == 1:
-            html_content += "</table><div>You cheated, didn't you? I'm telling Benny.</div>"
+            html_content += f"</table><div>{CONFIG['first_try_messages'][randint(1, 6)]}</div>"
     if user_attempts == 6 and solved == False:
         html_content += "</table><div>You ran out of attempts! Try again tomorrow!</div>"
 
@@ -259,7 +260,7 @@ td {
     return HTMLResponse(content = html_content)
 
 @app.post("/guess")
-async def process_guess(request: Request, guess: str = Form(...)):
+async def process_guess(request: Request, guess: str = Form(...)): 
     user_ip = request.client.host # type: ignore
     con = psycopg2.connect(CONNECT_STR)
     cur = con.cursor()
