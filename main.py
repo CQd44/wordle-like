@@ -173,7 +173,7 @@ td {
         if word == TEST_WORD and user_attempts > 1:
             html_content += "</table><div>YOU GOT THE WORD!!!! A WINNER IS YOU!</div>"
         elif word == TEST_WORD and user_attempts == 1:
-            html_content += f"</table><div>{CONFIG['first_try_messages'][randint(1, 6)]}</div>"
+            html_content += f"</table><div>{CONFIG['first_try_messages'][str(randint(1, 6))]}</div>"
     if user_attempts == 6 and solved == False:
         html_content += "</table><div>You ran out of attempts! Try again tomorrow!</div>"
 
@@ -346,4 +346,5 @@ def init_db():
                 ;'''
             )
     cur.close()
+
     con.commit()
