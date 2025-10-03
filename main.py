@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 import toml
 from random import randint
 
+
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static") #logo and favicon go here
 
@@ -19,12 +20,11 @@ TEST_WORD = "NEURO" #5 letter word, all caps. This is the word the users are try
 HINT = "No hint this time! You have to use your brain!" #the hint you can show to users to guide them towards the correct answer
 
 WORDS = []
-ROW_1 = "QWERTYUIOP"
-ROW_2 = "ASDFGHJKL"
-ROW_3 = "ZXCVBNM"
-ALPHA_COLORS_1 = {letter: ["white", False] for letter in ROW_1} # dictionary is structured like {A : ["white", False]}. The False means the letter isn't in the right spot. Will be used
-ALPHA_COLORS_2 = {letter: ["white", False] for letter in ROW_2} # later to turn the letter "green" in the letters shown on the bottom of the page.
-ALPHA_COLORS_3 = {letter: ["white", False] for letter in ROW_3}
+
+QWERTY = 'QWERTYUIOPASDFGHJKLZXCVBNM'
+# dictionary is structured like {A : ["white", False]}. The False means the letter isn't in the right spot. Will be used
+# later to turn the letter "green" in the letters shown on the bottom of the page.
+ALPHA_COLORS = {letter: ['white', False] for letter in QWERTY}
 
 with open('WORDS.txt', 'r') as file: # loads up dictionary of good 5 letter words. prevents users from spamming guesses with gibberish. 
     lines = file.readlines()
@@ -119,7 +119,6 @@ td {
 		<label>Guess here: <input autofocus  style="margin-bottom: 50px;" type = "text" id = "myInput" name = "guess" minlength = "5" maxlength="5" onkeypress="return isAlphabet(event)" required></label>
 		<span></span><button type = "submit" id = "myBtn">Guess word!</button>        
         </form>
-
         """
     attempted_words: list[str] = []
     x = 1
@@ -150,12 +149,7 @@ td {
                     case 4:
                         color_5 = "yellow"
             if word[i] == TEST_WORD[i]:
-                if word[i] in ALPHA_COLORS_1.keys():
-                    ALPHA_COLORS_1[word[i]][1] = True
-                if word[i] in ALPHA_COLORS_2.keys():
-                    ALPHA_COLORS_2[word[i]][1] = True
-                if word[i] in ALPHA_COLORS_3.keys():
-                    ALPHA_COLORS_3[word[i]][1] = True
+                ALPHA_COLORS[word[i]][1] = True
                 match i:
                     case 0:
                         color_1 = "green"
@@ -170,10 +164,10 @@ td {
         html_content += f""" <table>
                 <tr>
                     <td style="background-color: {color_1}; padding: 5px;" <b> {word[0]}</td>
-                    <td style="background-color: {color_2};padding: 5px;" <b> {word[1]}</td>
-                    <td style="background-color: {color_3};padding: 5px;" <b> {word[2]}</td>
-                    <td style="background-color: {color_4};padding: 5px;" <b> {word[3]}</td>
-                    <td style="background-color: {color_5};padding: 5px;" <b> {word[4]}</td>
+                    <td style="background-color: {color_2}; padding: 5px;" <b> {word[1]}</td>
+                    <td style="background-color: {color_3}; padding: 5px;" <b> {word[2]}</td>
+                    <td style="background-color: {color_4}; padding: 5px;" <b> {word[3]}</td>
+                    <td style="background-color: {color_5}; padding: 5px;" <b> {word[4]}</td>
                 </tr>
 """
         if word == TEST_WORD and user_attempts > 1:
@@ -195,51 +189,35 @@ td {
     result = cur.fetchone()
     try:
         letters_used = result[0] # type: ignore
-        for letter in letters_used:
-            if letter not in TEST_WORD:            
-                if letter in ROW_1:
-                    ALPHA_COLORS_1[letter][0] = 'gray'
-                if letter in ROW_2:
-                    ALPHA_COLORS_2[letter][0] = 'gray'
-                if letter in ROW_3:
-                    ALPHA_COLORS_3[letter][0] = 'gray'
-            if letter in TEST_WORD:            
-                if letter in ROW_1:
-                    ALPHA_COLORS_1[letter][0] = 'yellow'
-                    if ALPHA_COLORS_1[letter][1] == True:
-                        ALPHA_COLORS_1[letter][0] = 'green'
-                if letter in ROW_2:
-                    ALPHA_COLORS_2[letter][0] = 'yellow'
-                    if ALPHA_COLORS_2[letter][1] == True:
-                        ALPHA_COLORS_2[letter][0] = 'green'
-                if letter in ROW_3:
-                    ALPHA_COLORS_3[letter][0] = 'yellow'
-                    if ALPHA_COLORS_3[letter][1] == True:
-                        ALPHA_COLORS_3[letter][0] = 'green'
+        for letter in letters_used:            
+            if letter in TEST_WORD:
+                ALPHA_COLORS[letter][0] = 'yellow'
+                if ALPHA_COLORS[letter][1] == True:
+                    ALPHA_COLORS[letter][0] = 'green'
+            else:    
+                ALPHA_COLORS[letter][0] = 'gray'
     except Exception as e:
-        for key in ALPHA_COLORS_1:
-            ALPHA_COLORS_1[key] = "white"
-        for key in ALPHA_COLORS_2:
-            ALPHA_COLORS_2[key] = "white"
-        for key in ALPHA_COLORS_3:
-            ALPHA_COLORS_3[key] = "white"
-        print("User has made no attempts yet, probably.")
+        for letter in ALPHA_COLORS:
+            ALPHA_COLORS[letter][0] = 'white'
+        print("User has made no attempts yet, probably.\n", e)
     html_content += "<tr>"
-    for key in ALPHA_COLORS_1:
-        html_content += f'''<td style ="background-color: {ALPHA_COLORS_1[key][0]}; padding: 5px;"<b> {key}</td>'''
-    html_content += '<td style ="background-color: white; padding: 0px;"><img src="/static/la jaiba.png" alt = "JAIBA!" width = "25px" height = "25px"> </td></tr>'
-
-    html_content += '<tr><td style="max-width: 5px; background-color: lightgray; padding: 5px; border: 0px;"</td>'
-    for key in ALPHA_COLORS_2:
-        html_content += f'''<td style ="background-color: {ALPHA_COLORS_2[key][0]}; padding: 5px;"<b> {key}</td>'''
-    html_content += "</tr>"
-
-    html_content += '<tr><td style="background-color: lightgray; padding: 5px; border: 0px;"</td><td style="background-color: lightgray; padding: 5px; border: 0px;"</td>'
-    for key in ALPHA_COLORS_3:
-        html_content += f'''<td style ="background-color: {ALPHA_COLORS_3[key][0]}; padding: 5px;"<b> {key}</td>'''
     
-    html_content += """</tr></table>
-        
+    for letter in QWERTY[0: 11]:
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
+    html_content += '<td style ="background-color: white; padding: 0px;"><img src="/static/la jaiba.png" alt = "JAIBA!" width = "25px" height = "25px"> </td></tr>'
+    
+    html_content += '<tr><td style="max-width: 5px; background-color: lightgray; padding: 5px; border: 0px;"</td>'
+
+    for letter in QWERTY[11: 20]: 
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
+    html_content += "</tr>"
+    
+    html_content += '<tr><td style="background-color: lightgray; padding: 5px; border: 0px;"</td><td style="background-color: lightgray; padding: 5px; border: 0px;"</td>'
+
+    for letter in QWERTY[20: 27]: 
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
+    
+    html_content += """</tr></table>        
  <script>
         const myInput = document.getElementById('myInput');
         const myForm = document.getElementById('myForm');
