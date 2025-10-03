@@ -15,16 +15,16 @@ app.mount("/static", StaticFiles(directory="static"), name="static") #logo and f
 CONFIG = toml.load("./config.toml") # load variables from toml file
 CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
 
-TEST_WORD = "AORTA" #5 letter word, all caps. This is the word the users are trying to guess.
-HINT = "Major artery!" #the hint you can show to users to guide them towards the correct answer
+TEST_WORD = "NEURO" #5 letter word, all caps. This is the word the users are trying to guess.
+HINT = "No hint this time! You have to use your brain!" #the hint you can show to users to guide them towards the correct answer
 
 WORDS = []
 ROW_1 = "QWERTYUIOP"
 ROW_2 = "ASDFGHJKL"
 ROW_3 = "ZXCVBNM"
-ALPHA_COLORS_1 = {letter: "white" for letter in ROW_1}
-ALPHA_COLORS_2 = {letter: "white" for letter in ROW_2}
-ALPHA_COLORS_3 = {letter: "white" for letter in ROW_3}
+ALPHA_COLORS_1 = {letter: ["white", False] for letter in ROW_1} # dictionary is structured like {A : ["white", False]}. The False means the letter isn't in the right spot. Will be used
+ALPHA_COLORS_2 = {letter: ["white", False] for letter in ROW_2} # later to turn the letter "green" in the letters shown on the bottom of the page.
+ALPHA_COLORS_3 = {letter: ["white", False] for letter in ROW_3}
 
 with open('WORDS.txt', 'r') as file: # loads up dictionary of good 5 letter words. prevents users from spamming guesses with gibberish. 
     lines = file.readlines()
@@ -150,6 +150,12 @@ td {
                     case 4:
                         color_5 = "yellow"
             if word[i] == TEST_WORD[i]:
+                if word[i] in ALPHA_COLORS_1.keys():
+                    ALPHA_COLORS_1[word[i]][1] = True
+                if word[i] in ALPHA_COLORS_2.keys():
+                    ALPHA_COLORS_2[word[i]][1] = True
+                if word[i] in ALPHA_COLORS_3.keys():
+                    ALPHA_COLORS_3[word[i]][1] = True
                 match i:
                     case 0:
                         color_1 = "green"
@@ -192,18 +198,24 @@ td {
         for letter in letters_used:
             if letter not in TEST_WORD:            
                 if letter in ROW_1:
-                    ALPHA_COLORS_1[letter] = 'gray'
+                    ALPHA_COLORS_1[letter][0] = 'gray'
                 if letter in ROW_2:
-                    ALPHA_COLORS_2[letter] = 'gray'
+                    ALPHA_COLORS_2[letter][0] = 'gray'
                 if letter in ROW_3:
-                    ALPHA_COLORS_3[letter] = 'gray'
+                    ALPHA_COLORS_3[letter][0] = 'gray'
             if letter in TEST_WORD:            
                 if letter in ROW_1:
-                    ALPHA_COLORS_1[letter] = 'yellow'
+                    ALPHA_COLORS_1[letter][0] = 'yellow'
+                    if ALPHA_COLORS_1[letter][1] == True:
+                        ALPHA_COLORS_1[letter][0] = 'green'
                 if letter in ROW_2:
-                    ALPHA_COLORS_2[letter] = 'yellow'
+                    ALPHA_COLORS_2[letter][0] = 'yellow'
+                    if ALPHA_COLORS_2[letter][1] == True:
+                        ALPHA_COLORS_2[letter][0] = 'green'
                 if letter in ROW_3:
-                    ALPHA_COLORS_3[letter] = 'yellow'
+                    ALPHA_COLORS_3[letter][0] = 'yellow'
+                    if ALPHA_COLORS_3[letter][1] == True:
+                        ALPHA_COLORS_3[letter][0] = 'green'
     except Exception as e:
         for key in ALPHA_COLORS_1:
             ALPHA_COLORS_1[key] = "white"
@@ -214,17 +226,17 @@ td {
         print("User has made no attempts yet, probably.")
     html_content += "<tr>"
     for key in ALPHA_COLORS_1:
-        html_content += f'''<td style ="background-color: {ALPHA_COLORS_1[key]}; padding: 5px;"<b> {key}</td>'''
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS_1[key][0]}; padding: 5px;"<b> {key}</td>'''
     html_content += '<td style ="background-color: white; padding: 0px;"><img src="/static/la jaiba.png" alt = "JAIBA!" width = "25px" height = "25px"> </td></tr>'
 
     html_content += '<tr><td style="max-width: 5px; background-color: lightgray; padding: 5px; border: 0px;"</td>'
     for key in ALPHA_COLORS_2:
-        html_content += f'''<td style ="background-color: {ALPHA_COLORS_2[key]}; padding: 5px;"<b> {key}</td>'''
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS_2[key][0]}; padding: 5px;"<b> {key}</td>'''
     html_content += "</tr>"
 
     html_content += '<tr><td style="background-color: lightgray; padding: 5px; border: 0px;"</td><td style="background-color: lightgray; padding: 5px; border: 0px;"</td>'
     for key in ALPHA_COLORS_3:
-        html_content += f'''<td style ="background-color: {ALPHA_COLORS_3[key]}; padding: 5px;"<b> {key}</td>'''
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS_3[key][0]}; padding: 5px;"<b> {key}</td>'''
     
     html_content += """</tr></table>
         
@@ -346,5 +358,4 @@ def init_db():
                 ;'''
             )
     cur.close()
-
     con.commit()
