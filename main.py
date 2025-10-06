@@ -9,22 +9,21 @@ from fastapi.staticfiles import StaticFiles
 import toml
 from random import randint
 
-
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static") #logo and favicon go here
 
 CONFIG = toml.load("./config.toml") # load variables from toml file
 CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
 
-TEST_WORD = "NEURO" #5 letter word, all caps. This is the word the users are trying to guess.
-HINT = "No hint this time! You have to use your brain!" #the hint you can show to users to guide them towards the correct answer
+TEST_WORD = "MOUSE" # 5 letter word, all caps. This is the word the users are trying to guess.
+HINT = "We all use this here, every single day!" # The hint you can show to users to guide them towards the correct answer.
 
 WORDS = []
 
 QWERTY = 'QWERTYUIOPASDFGHJKLZXCVBNM'
 # dictionary is structured like {A : ["white", False]}. The False means the letter isn't in the right spot. Will be used
 # later to turn the letter "green" in the letters shown on the bottom of the page.
-ALPHA_COLORS = {letter: ['white', False] for letter in QWERTY}
+# ALPHA_COLORS = {letter: ['white', False] for letter in QWERTY}
 
 with open('WORDS.txt', 'r') as file: # loads up dictionary of good 5 letter words. prevents users from spamming guesses with gibberish. 
     lines = file.readlines()
@@ -40,6 +39,7 @@ async def startup_event():
 
 @app.get("/", response_class=HTMLResponse)
 async def get_form(request: Request) -> HTMLResponse:
+    ALPHA_COLORS = {letter: ['white', False] for letter in QWERTY}
     user_ip = request.client.host # type: ignore
     con = psycopg2.connect(CONNECT_STR)
     cur = con.cursor()
@@ -202,19 +202,19 @@ td {
         print("User has made no attempts yet, probably.\n", e)
     html_content += "<tr>"
     
-    for letter in QWERTY[0: 11]:
+    for letter in QWERTY[0: 10]:
         html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
     html_content += '<td style ="background-color: white; padding: 0px;"><img src="/static/la jaiba.png" alt = "JAIBA!" width = "25px" height = "25px"> </td></tr>'
     
     html_content += '<tr><td style="max-width: 5px; background-color: lightgray; padding: 5px; border: 0px;"</td>'
 
-    for letter in QWERTY[11: 20]: 
+    for letter in QWERTY[10: 19]: 
         html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
     html_content += "</tr>"
     
     html_content += '<tr><td style="background-color: lightgray; padding: 5px; border: 0px;"</td><td style="background-color: lightgray; padding: 5px; border: 0px;"</td>'
 
-    for letter in QWERTY[20: 27]: 
+    for letter in QWERTY[19: 27]: 
         html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
     
     html_content += """</tr></table>        
