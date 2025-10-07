@@ -15,15 +15,14 @@ app.mount("/static", StaticFiles(directory="static"), name="static") #logo and f
 CONFIG = toml.load("./config.toml") # load variables from toml file
 CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
 
-TEST_WORD = "MOUSE" # 5 letter word, all caps. This is the word the users are trying to guess.
-HINT = "We all use this here, every single day!" # The hint you can show to users to guide them towards the correct answer.
+TEST_WORD = "PHONE" # 5 letter word, all caps. This is the word the users are trying to guess.
+HINT = "You all technically don't use one of these!" # The hint you can show to users to guide them towards the correct answer.
 
-WORDS = []
+WORDS: list[str] = []
 
 QWERTY = 'QWERTYUIOPASDFGHJKLZXCVBNM'
 # dictionary is structured like {A : ["white", False]}. The False means the letter isn't in the right spot. Will be used
 # later to turn the letter "green" in the letters shown on the bottom of the page.
-# ALPHA_COLORS = {letter: ['white', False] for letter in QWERTY}
 
 with open('WORDS.txt', 'r') as file: # loads up dictionary of good 5 letter words. prevents users from spamming guesses with gibberish. 
     lines = file.readlines()
@@ -37,9 +36,9 @@ async def startup_event():
     except Exception as e:
         print(e)
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse) # page with actual game
 async def get_form(request: Request) -> HTMLResponse:
-    ALPHA_COLORS = {letter: ['white', False] for letter in QWERTY}
+    ALPHA_COLORS = {letter: ['white', False] for letter in QWERTY} # moved down here because otherwise the user's browser might cache the wrong colors
     user_ip = request.client.host # type: ignore
     con = psycopg2.connect(CONNECT_STR)
     cur = con.cursor()
@@ -115,7 +114,7 @@ td {
         user_attempts = 0
         solved = False
     if user_attempts < 6 and not solved:
-        html_content +=  """    <form id="myForm" method = "POST" action = "/guess">
+        html_content +=  """<form id="myForm" method = "POST" action = "/guess">
 		<label>Guess here: <input autofocus  style="margin-bottom: 50px;" type = "text" id = "myInput" name = "guess" minlength = "5" maxlength="5" onkeypress="return isAlphabet(event)" required></label>
 		<span></span><button type = "submit" id = "myBtn">Guess word!</button>        
         </form>
@@ -149,7 +148,7 @@ td {
                     case 4:
                         color_5 = "yellow"
             if word[i] == TEST_WORD[i]:
-                ALPHA_COLORS[word[i]][1] = True
+                ALPHA_COLORS[word[i]][1] = True # This is used to signal that the letter will be colored green in the onscreen keyboard
                 match i:
                     case 0:
                         color_1 = "green"
@@ -173,11 +172,11 @@ td {
         if word == TEST_WORD and user_attempts > 1:
             html_content += "</table><div>YOU GOT THE WORD!!!! A WINNER IS YOU!</div>"
         elif word == TEST_WORD and user_attempts == 1:
-            html_content += f"</table><div>{CONFIG['first_try_messages'][str(randint(1, 6))]}</div>"
-    if user_attempts == 6 and solved == False:
+            html_content += f"</table><div>{CONFIG['first_try_messages'][str(randint(1, 6))]}</div>" # picks random message to show to user if they get it in one try. found in TOML
+    if user_attempts == 6 and not solved:
         html_content += "</table><div>You ran out of attempts! Try again tomorrow!</div>"
 
-    html_content +="""   </table>
+    html_content += """</table>
     <div class="letters">LETTERS TRIED SO FAR
                 <table class="attempted_letters">
     """ 
@@ -191,17 +190,20 @@ td {
         letters_used = result[0] # type: ignore
         for letter in letters_used:            
             if letter in TEST_WORD:
-                ALPHA_COLORS[letter][0] = 'yellow'
+                ALPHA_COLORS[letter][0] = "yellow"
                 if ALPHA_COLORS[letter][1] == True:
-                    ALPHA_COLORS[letter][0] = 'green'
+                    ALPHA_COLORS[letter][0] = "green"
             else:    
-                ALPHA_COLORS[letter][0] = 'gray'
+                ALPHA_COLORS[letter][0] = "gray"
     except Exception as e:
         for letter in ALPHA_COLORS:
-            ALPHA_COLORS[letter][0] = 'white'
+            ALPHA_COLORS[letter][0] = "white"
         print("User has made no attempts yet, probably.\n", e)
     html_content += "<tr>"
     
+    # Onscreen keyboard that shows users which letters have been attempted, which are in the word, and which have their correct spots figured out.
+    # Uses logic above to determine what color the letter is going to be. By default, they are white. 
+    # Probably a better way to do it. I'll figure out a better way soon, I promise!
     for letter in QWERTY[0: 10]:
         html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
     html_content += '<td style ="background-color: white; padding: 0px;"><img src="/static/la jaiba.png" alt = "JAIBA!" width = "25px" height = "25px"> </td></tr>'
@@ -264,22 +266,33 @@ async def process_guess(request: Request, guess: str = Form(...)):
     except: 
         attempts = 0
     if attempts < 6:
-        if guess.lower() in WORDS:
+        if guess.lower() not in WORDS:
+            return HTMLResponse(content=f"""
+                                {guess} is not an acceptable word. If you think this is a mistake, please tell Clay about it along with the word you used.
+                                <div></div>Go back and try another word.""")
+        else:
             try: 
                 QUERY = "SELECT attempts, letters_used FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
                 DATA = (user_ip, )
                 cur.execute(QUERY, DATA)
                 result = cur.fetchone()
-                no_of_attempts: int = result[0] # type: ignore
+                attempt_number: int = result[0] # type: ignore
                 attempted_letters = result[1] # type: ignore
-                attempt_number = no_of_attempts + 1
+                attempt_number += 1
                 for letter in guess.upper():
                     if letter not in attempted_letters:
                         attempted_letters += letter
                 sorted_letters = sorted(attempted_letters)
                 sorted_string = "".join(sorted_letters)
 
-                QUERY = f"UPDATE wordle SET attempts = '{attempt_number}', attempt_{attempt_number} = '{guess.upper()}',  letters_used = '{sorted_string}' WHERE (ip_address = '{user_ip}' AND attempt_date = CURRENT_DATE);"
+                QUERY = f"""
+                UPDATE wordle SET attempts = '{attempt_number}', 
+                attempt_{attempt_number} = '{guess.upper()}',  
+                letters_used = '{sorted_string}' 
+                WHERE 
+                (ip_address = '{user_ip}' 
+                AND 
+                attempt_date = CURRENT_DATE);"""
                 cur.execute(QUERY)
                 cur.close()
                 con.commit()
@@ -312,14 +325,13 @@ async def process_guess(request: Request, guess: str = Form(...)):
                     cur.close()
                     con.commit()
             return RedirectResponse(url="/", status_code=303)
-        else:
-            return HTMLResponse(content=f"{guess} is not an acceptable word. If you think this is a mistake, please tell Clay about it along with the word you used.<br>Go back and try another word.")
+            
 
 def init_db():
     con = psycopg2.connect(CONNECT_STR)
     cur = con.cursor() 
     # word of day is not yet used
-    cur.execute('''CREATE TABLE IF NOT EXISTS wordle 
+    cur.execute("""CREATE TABLE IF NOT EXISTS wordle 
                 (id SERIAL PRIMARY KEY, 
                 ip_address INET,
                 attempts INT DEFAULT 1,
@@ -333,7 +345,7 @@ def init_db():
                 letters_used TEXT,
                 won BOOLEAN DEFAULT FALSE,
                 word_of_day TEXT) 
-                ;'''
+                ;"""
             )
     cur.close()
     con.commit()
