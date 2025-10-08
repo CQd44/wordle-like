@@ -42,7 +42,19 @@ async def get_form(request: Request) -> HTMLResponse:
     user_ip = request.client.host # type: ignore
     con = psycopg2.connect(CONNECT_STR)
     cur = con.cursor()
-    
+    QUERY = "SELECT has_read_rules FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
+    DATA = (user_ip, )
+    cur.execute(QUERY, DATA)
+    result = cur.fetchone()
+    try:
+        rulesRead = result[0] # type: ignore
+    except:
+        rulesRead = False
+    if rulesRead == True:
+        display_rules = 'none'
+    else:
+        display_rules = 'flex'
+
     html_content = """
 <!DOCTYPE html>
 <html>
@@ -94,7 +106,7 @@ td {
     }
 
 .popup {
-            display: flex;
+            display: %s;
             opacity: 1; 
             position: fixed; 
             z-index: 1; 
@@ -106,7 +118,7 @@ td {
             align-items: center; 
         }
 
-        .popup-content {
+.popup-content {
             background-color: #fefefe;
             margin: auto;
             padding: 20px;
@@ -119,7 +131,7 @@ td {
             position: relative;
         }
 
-        .close-button {
+.close-button {
             color: #aaa;
             float: right;
             font-size: 28px;
@@ -133,8 +145,6 @@ td {
             text-decoration: none;
             cursor: pointer;
         }
-    
-
 </style>
 
 <title>Wordle Wannabe</title></head>
@@ -162,7 +172,7 @@ td {
 
     <h3>HINTS:</h3>
     <div>%s</div><div style = "margin-bottom: 50px;"></div>
-    """ % (HINT,)
+    """ % (display_rules, HINT)
 
     QUERY = "SELECT attempts, won FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
     DATA = (user_ip, )
