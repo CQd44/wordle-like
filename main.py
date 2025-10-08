@@ -46,13 +46,11 @@ async def get_form(request: Request) -> HTMLResponse:
     DATA = (user_ip, )
     cur.execute(QUERY, DATA)
     result = cur.fetchone()
+    # the following check will only throw an exception if the user hasn't made an attempt so... it'll show them the rules. Faster than adding an if statement after this.
     try:
         rulesRead = result[0] # type: ignore
-    except:
-        rulesRead = False
-    if rulesRead == True:
         display_rules = 'none'
-    else:
+    except:
         display_rules = 'flex'
 
     html_content = """
@@ -313,7 +311,6 @@ td {
         async function refreshPage() {
         console.log("Attempting page refresh.");
         window.location.href = window.location.href;
-        window.location.href = window.location.href;
 }
         myForm.addEventListener('submit', refreshPage);
 
@@ -361,8 +358,7 @@ async def process_guess(request: Request, guess: str = Form(...)):
                 DATA = (user_ip, )
                 cur.execute(QUERY, DATA)
                 result = cur.fetchone()
-                attempt_number: int = result[0] # type: ignore
-                attempted_letters = result[1] # type: ignore
+                attempt_number, attempted_letters = result[0], result[1] # type: ignore
                 attempt_number += 1
                 for letter in guess.upper():
                     if letter not in attempted_letters:
@@ -396,8 +392,8 @@ async def process_guess(request: Request, guess: str = Form(...)):
                         attempted_letters += letter               
                 con = psycopg2.connect(CONNECT_STR)
                 cur = con.cursor()
-                QUERY = "INSERT INTO wordle (ip_address, attempt_1, letters_used) VALUES (%s, %s, %s);"
-                DATA = (user_ip, guess.upper(), "".join(sorted(attempted_letters.upper())))
+                QUERY = "INSERT INTO wordle (ip_address, attempt_1, letters_used, word_of_day) VALUES (%s, %s, %s, %s);"
+                DATA = (user_ip, guess.upper(), "".join(sorted(attempted_letters.upper())), TEST_WORD)
                 cur.execute(QUERY, DATA)
                 cur.close()
                 con.commit()
@@ -409,13 +405,11 @@ async def process_guess(request: Request, guess: str = Form(...)):
                     cur.execute(QUERY, DATA)
                     cur.close()
                     con.commit()
-            return RedirectResponse(url="/", status_code=303)
-            
+            return RedirectResponse(url="/", status_code=303)            
 
 def init_db():
     con = psycopg2.connect(CONNECT_STR)
     cur = con.cursor() 
-    # word of day is not yet used
     cur.execute("""CREATE TABLE IF NOT EXISTS wordle 
                 (id SERIAL PRIMARY KEY, 
                 ip_address INET,
@@ -429,7 +423,8 @@ def init_db():
                 attempt_date DATE DEFAULT CURRENT_DATE,
                 letters_used TEXT,
                 won BOOLEAN DEFAULT FALSE,
-                word_of_day TEXT) 
+                word_of_day TEXT,
+                has_read_rules BOOLEAN DEFAULT TRUE) 
                 ;"""
             )
     cur.close()
