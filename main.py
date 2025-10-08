@@ -15,8 +15,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static") #logo and f
 CONFIG = toml.load("./config.toml") # load variables from toml file
 CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
 
-TEST_WORD = "PHONE" # 5 letter word, all caps. This is the word the users are trying to guess.
-HINT = "You all technically don't use one of these!" # The hint you can show to users to guide them towards the correct answer.
+TEST_WORD = "LEARN" # 5 letter word, all caps. This is the word the users are trying to guess.
+HINT = "You do this to acquire new skills or knowledge!" # The hint you can show to users to guide them towards the correct answer.
 
 WORDS: list[str] = []
 
@@ -92,6 +92,49 @@ td {
     white-space: pre-line;
     text-align: center;
     }
+
+.popup {
+            display: flex;
+            opacity: 1; 
+            position: fixed; 
+            z-index: 1; 
+            width: 100rem; 
+            height: 100rem; 
+            overflow: auto; 
+            background-color: lightgray; 
+            justify-content: center; 
+            align-items: center; 
+        }
+
+        .popup-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            width: 80rem; 
+            text-align: center;
+            max-width: 500px; 
+            border-radius: 5px;
+            position: relative;
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    
+
 </style>
 
 <title>Wordle Wannabe</title></head>
@@ -99,6 +142,24 @@ td {
 <body>
     <h1>Clay's Wordle-like Game That Is Legally Distinct from Wordle!</h1>
 	<div><img src="/static/dhr-logo.png" alt = "DHR Logo" width = "426px" height = "116px"></div>
+    
+          <button onclick="openPopup()">Rules / How to Play</button>
+
+    <div id="myPopup" class="popup">
+        <div class="popup-content">
+            <span class="close-button" onclick="closePopup()">&times;</span>
+            <h2>Rules and How to Play</h2>
+            <p>This is my knockoff of the popular game "Wordle."</p>
+            <p>Basically, you get 6 chances to guess a 5 letter word. You're given a hint to try to guide you in the right direction.</p>
+            <p>Type a 5 letter word into the box, press Enter (or click "Guess word!), and you'll see how close your guess was.</p>
+            <p>Whenever you make a guess, letters that are in the word will be colored <span style = "color: yellow; background-color: black;"><b>YELLOW</b></span>.</p>
+            <p>Letters that are in the word AND in the correct spot in the world will be colored<span style = "color: green;"><b>GREEN</b></span>.</p>
+            <p>You can keep track of what letters you tried with the onscreen keyboard on the bottom of the page. Attempted letters are gray, letters that are in the word are
+            yellow, and letters which you've found the correct location for are green.</p>
+             <button style= "box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);" onclick="closeRules()">Start playing!</button>
+        </div>
+    </div>
+
     <h3>HINTS:</h3>
     <div>%s</div><div style = "margin-bottom: 50px;"></div>
     """ % (HINT,)
@@ -245,6 +306,20 @@ td {
         window.location.href = window.location.href;
 }
         myForm.addEventListener('submit', refreshPage);
+
+         function openPopup() {
+            document.getElementById('myPopup').style.display = 'flex';
+        }
+
+        function closePopup() {
+            document.getElementById('myPopup').style.display = 'none';
+        }
+
+        function closeRules() {
+            document.getElementById('myPopup').style.display = 'none';
+        }
+
+        document.getElementById('openPopupBtn').addEventListener('click', openPopup);
 
 </script>
                 </body>
