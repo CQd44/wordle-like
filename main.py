@@ -14,27 +14,18 @@ app.mount("/static", StaticFiles(directory="static"), name="static") #logo and f
 
 CONFIG = toml.load("./config.toml") # load variables from toml file
 CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
-
-TEST_WORD = "LEARN" # 5 letter word, all caps. This is the word the users are trying to guess.
-HINT = "You do this to acquire new skills or knowledge!" # The hint you can show to users to guide them towards the correct answer.
-
 WORDS: list[str] = []
-
-QWERTY = 'QWERTYUIOPASDFGHJKLZXCVBNM'
-# dictionary is structured like {A : ["white", False]}. The False means the letter isn't in the right spot. Will be used
+QWERTY: str = 'QWERTYUIOPASDFGHJKLZXCVBNM'
+# in get_form, dictionary is structured like {A : ["white", False]}. The False means the letter isn't in the right spot. Will be used
 # later to turn the letter "green" in the letters shown on the bottom of the page.
-
 with open('WORDS.txt', 'r') as file: # loads up dictionary of good 5 letter words. prevents users from spamming guesses with gibberish. 
     lines = file.readlines()
     for line in lines:
         WORDS.append(line.strip())
 
-@app.on_event("startup")
-async def startup_event():
-    try:
-        init_db()
-    except Exception as e:
-        print(e)
+class WordOfDay:
+    TEST_WORD = "MEDIC" # 5 letter word, all caps. This is the word the users are trying to guess.
+    HINT = "Battle nurse?" # The hint you can show to users to guide them towards the correct answer.
 
 @app.get("/", response_class=HTMLResponse) # page with actual game
 async def get_form(request: Request) -> HTMLResponse:
@@ -170,7 +161,7 @@ td {
 
     <h3>HINTS:</h3>
     <div>%s</div><div style = "margin-bottom: 50px;"></div>
-    """ % (display_rules, HINT)
+    """ % (display_rules, WordOfDay.HINT)
 
     QUERY = "SELECT attempts, won FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
     DATA = (user_ip, )
@@ -204,7 +195,7 @@ td {
         color_4 = "gray"
         color_5 = "gray"
         for i in range(5):
-            if word[i] in TEST_WORD:
+            if word[i] in WordOfDay.TEST_WORD:
                 match i:
                     case 0:
                         color_1 = "yellow"
@@ -216,7 +207,7 @@ td {
                         color_4 = "yellow"
                     case 4:
                         color_5 = "yellow"
-            if word[i] == TEST_WORD[i]:
+            if word[i] == WordOfDay.TEST_WORD[i]:
                 ALPHA_COLORS[word[i]][1] = True # This is used to signal that the letter will be colored green in the onscreen keyboard
                 match i:
                     case 0:
@@ -238,9 +229,9 @@ td {
                     <td style="background-color: {color_5}; padding: 5px;" <b> {word[4]}</td>
                 </tr>
 """
-        if word == TEST_WORD and user_attempts > 1:
+        if word == WordOfDay.TEST_WORD and user_attempts > 1:
             html_content += "</table><div>YOU GOT THE WORD!!!! A WINNER IS YOU!</div>"
-        elif word == TEST_WORD and user_attempts == 1:
+        elif word == WordOfDay.TEST_WORD and user_attempts == 1:
             html_content += f"</table><div>{CONFIG['first_try_messages'][str(randint(1, 6))]}</div>" # picks random message to show to user if they get it in one try. found in TOML
     if user_attempts == 6 and not solved:
         html_content += "</table><div>You ran out of attempts! Try again tomorrow!</div>"
@@ -258,7 +249,7 @@ td {
     try:
         letters_used = result[0] # type: ignore
         for letter in letters_used:            
-            if letter in TEST_WORD:
+            if letter in WordOfDay.TEST_WORD:
                 ALPHA_COLORS[letter][0] = "yellow"
                 if ALPHA_COLORS[letter][1] == True:
                     ALPHA_COLORS[letter][0] = "green"
@@ -406,6 +397,64 @@ async def process_guess(request: Request, guess: str = Form(...)):
                     cur.close()
                     con.commit()
             return RedirectResponse(url="/", status_code=303)            
+
+@app.get("/updateword", response_class=HTMLResponse) # page to update the word of the day and add it to dict if needed
+async def update_word_page(request: Request):
+    html_content = """
+<!DOCTYPE html>
+<html>
+<head><meta charset = "UTF-8">
+<style>
+
+span {
+    margin-left: 5px;
+}
+
+body {
+		margin: 0;
+		display: grid;
+		min-height: 10vh;
+		place-items: center;
+		background-color: lightgray;
+	}
+
+div {
+		text-align: center;
+        margin-bottom: 10px;
+	}
+
+</style>
+
+<title>Wordle Wannabe's Word Updater</title></head>
+<link rel="icon" type = "image/x-icon" href="/static/favicon.ico">
+<body>
+    <h1>Update Word and Hint</h1>
+    <div><img src="/static/dhr-logo.png" alt = "DHR Logo" width = "426px" height = "116px"></div>
+<div>
+<form id="myForm" method = "POST" action = "/changeword">
+		<div><label>New word: <input style="margin-bottom: 50px;" type = "text" id = "myWord" name = "word" minlength = "5" maxlength="5" required></label></div>
+		<div><label>New hint: <input style="margin-bottom: 50px;" type = "text" id = "myHint" name = "hint" required></label></div>
+		<button type = "submit" id = "myBtn">Change word and hint!</button>        
+        </form>
+</div>
+"""
+    return HTMLResponse(content=html_content)
+
+@app.post("/changeword") # actual endpoint and method to update the word and hint etc
+async def change_word(request: Request, word: str = Form(...), hint:str = Form(...)):
+    WordOfDay.TEST_WORD = word.upper()
+    WordOfDay.HINT = hint
+    if word.lower() not in WORDS:
+        WORDS.append(word)
+        with open('WORDS.txt', 'a') as file: #if word isn't in the dictionary, this adds the word to it.
+            file.write('\n' + word)
+
+@app.on_event("startup")
+async def startup_event():
+    try:
+        init_db()
+    except Exception as e:
+        print(e)
 
 def init_db():
     con = psycopg2.connect(CONNECT_STR)
