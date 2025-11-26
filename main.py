@@ -232,7 +232,8 @@ td {
         if word == WordOfDay.TEST_WORD and user_attempts > 1:
             html_content += "</table><div>YOU GOT THE WORD!!!! A WINNER IS YOU!</div>"
         elif word == WordOfDay.TEST_WORD and user_attempts == 1:
-            html_content += f"</table><div>{CONFIG['first_try_messages'][str(randint(1, 6))]}</div>" # picks random message to show to user if they get it in one try. found in TOML
+            num_of_messages: int = len(list(CONFIG["first_try_messages"].keys()))
+            html_content += f"</table><div>{CONFIG['first_try_messages'][str(randint(1, num_of_messages))]}</div>" # picks random message to show to user if they get it in one try. found in TOML
     if user_attempts == 6 and not solved:
         html_content += "</table><div>You ran out of attempts! Try again tomorrow!</div>"
 
@@ -368,7 +369,7 @@ async def process_guess(request: Request, guess: str = Form(...)):
                 cur.execute(QUERY)
                 cur.close()
                 con.commit()
-                if guess.upper() == TEST_WORD:
+                if guess.upper() == WordOfDay.TEST_WORD:
                     con = psycopg2.connect(CONNECT_STR)
                     cur = con.cursor()
                     QUERY = "UPDATE wordle SET won = True WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
@@ -384,11 +385,11 @@ async def process_guess(request: Request, guess: str = Form(...)):
                 con = psycopg2.connect(CONNECT_STR)
                 cur = con.cursor()
                 QUERY = "INSERT INTO wordle (ip_address, attempt_1, letters_used, word_of_day) VALUES (%s, %s, %s, %s);"
-                DATA = (user_ip, guess.upper(), "".join(sorted(attempted_letters.upper())), TEST_WORD)
+                DATA = (user_ip, guess.upper(), "".join(sorted(attempted_letters.upper())), WordOfDay.TEST_WORD)
                 cur.execute(QUERY, DATA)
                 cur.close()
                 con.commit()
-                if guess.upper() == TEST_WORD:
+                if guess.upper() == WordOfDay.TEST_WORD:
                     con = psycopg2.connect(CONNECT_STR)
                     cur = con.cursor()
                     QUERY = "UPDATE wordle SET won = True WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
@@ -440,14 +441,15 @@ div {
 """
     return HTMLResponse(content=html_content)
 
-@app.post("/changeword") # actual endpoint and method to update the word and hint etc
+@app.post("/changeword", response_class=HTMLResponse) # actual endpoint and method to update the word and hint etc
 async def change_word(request: Request, word: str = Form(...), hint:str = Form(...)):
     WordOfDay.TEST_WORD = word.upper()
     WordOfDay.HINT = hint
     if word.lower() not in WORDS:
-        WORDS.append(word)
+        WORDS.append(word.lower())
         with open('WORDS.txt', 'a') as file: #if word isn't in the dictionary, this adds the word to it.
-            file.write('\n' + word)
+            file.write('\n' + word.lower())
+    return HTMLResponse(content="Word and hint updated!")
 
 @app.on_event("startup")
 async def startup_event():
