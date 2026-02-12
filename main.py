@@ -13,6 +13,7 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static") #logo and favicon go here
 
 CONFIG = toml.load("./config.toml") # load variables from toml file
+WORD_INFO = toml.load("./word.toml")
 CONNECT_STR = f'dbname = {CONFIG['credentials']['dbname']} user = {CONFIG['credentials']['username']} password = {CONFIG['credentials']['password']} host = {CONFIG['credentials']['host']}'
 WORDS: list[str] = []
 QWERTY: str = 'QWERTYUIOPASDFGHJKLZXCVBNM'
@@ -24,8 +25,8 @@ with open('WORDS.txt', 'r') as file: # loads up dictionary of good 5 letter word
         WORDS.append(line.strip())
 
 class WordOfDay:
-    TEST_WORD = "MEDIC" # 5 letter word, all caps. This is the word the users are trying to guess.
-    HINT = "Battle nurse?" # The hint you can show to users to guide them towards the correct answer.
+    TEST_WORD = WORD_INFO['word_info']['word_of_day'] # 5 letter word, all caps. This is the word the users are trying to guess.
+    HINT = WORD_INFO['word_info']['hint'] # The hint you can show to users to guide them towards the correct answer.
 
 @app.get("/", response_class=HTMLResponse) # page with actual game
 async def get_form(request: Request) -> HTMLResponse:
@@ -49,99 +50,209 @@ async def get_form(request: Request) -> HTMLResponse:
 <html>
 <head><meta charset = "UTF-8">
 <style>
-table {
-    margin-bottom: 10px;
-    margin-top: 10px;
-}
-
-.letters {
-    position: absolute;
-    bottom: 0;
-    text-align: center;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-  vertical-align: middle;
-}
-
-span {
-    margin-left: 5px;
-}
-
-body {
-		margin: 0;
-		display: grid;
-		min-height: 10vh;
-		place-items: center;
-		background-color: lightgray;
-	}
-
-div {
-		text-align: center;
-        margin-bottom: 10px;
-	}
-
-tr {
-    border: solid;
-    font-size: 24px;
-    text-align: center;
-    }
-
-td {
-    background-color: white;
-    border: 2px solid;
-    white-space: pre-line;
-    text-align: center;
-    }
-
-.popup {
-            display: %s;
-            opacity: 1; 
-            position: fixed; 
-            z-index: 1; 
-            width: 100rem; 
-            height: 100rem; 
-            overflow: auto; 
-            background-color: lightgray; 
-            justify-content: center; 
-            align-items: center; 
+        :root {
+            --brand-primary: #00a9a7;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #334155;
+            --border: #e2e8f0;
+            --wordle-gray: #787c7e;
+            --wordle-green: #6aaa64;
+            --wordle-yellow: #c9b458;
         }
 
-.popup-content {
-            background-color: #fefefe;
-            margin: auto;
-            padding: 20px;
-            border: 1px solid #888;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            width: 80rem; 
+        .game-section-card {
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border-top: 4px solid var(--brand-primary); /* Your signature teal trim */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Keyboard Table refinement */
+.attempted_letters {
+    border-collapse: separate;
+    border-spacing: 5px; /* Adds space between keys */
+}
+
+.attempted_letters td {
+    width: 32px;
+    height: 42px;
+    background-color: #e2e8f0;
+    border: none;
+    border-radius: 4px;
+    font-weight: 700;
+    color: var(--text-main);
+    text-align: center;
+}
+
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Roboto', sans-serif;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            color: var(--brand-primary);
+            font-size: 1.5rem;
             text-align: center;
-            max-width: 500px; 
-            border-radius: 5px;
+            max-width: 600px;
+        }
+
+        /* Card Container */
+        .game-card {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            border-top: 4px solid var(--brand-primary);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); """
+    html_content += "width: 100%;"
+    html_content += """
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             position: relative;
         }
 
-.close-button {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
+        /* Keyboard Styles */
+        .letters {
+            margin-top: 30px;
+            text-align: center;
             font-weight: bold;
-            cursor: pointer;
+            font-size: 0.8rem;
+            color: var(--wordle-gray);
         }
 
-        .close-button:hover,
-        .close-button:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
+        .attempted_letters {
+            border-collapse: separate;
+            border-spacing: 4px;
+            margin-top: 10px;
         }
+
+        .attempted_letters td {
+            width: 35px;
+            height: 45px;
+            background-color: #e2e8f0;
+            border: none;
+            border-radius: 4px;
+            font-weight: 900;
+            font-size: 1.1rem;
+            color: var(--text-main);
+        }
+
+        /* Input Styles */
+        input[type="text"] {
+            padding: 12px;
+            font-size: 1.5rem;
+            text-align: center;
+            letter-spacing: 0.5rem;
+            text-transform: uppercase;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            width: 200px;
+            margin: 15px 0;
+            outline-color: var(--brand-primary);
+        }
+
+        button {
+            padding: 12px 24px;
+            background-color: var(--brand-primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Popup Logic */
+        .popup { """
+    html_content += f"display: {display_rules};"
+    html_content += """
+            position: fixed;
+            z-index: 1000; """
+    html_content += "left: 0; top: 0; width: 100%; height: 100%;"
+    html_content += """
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .popup-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 450px;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+        }
+
+        #keyboard-stuff {
+        position: fixed;
+        bottom: 0;
+        }
+
+        /* Sonic Animations */
+        .sonicfadeout {
+                position: absolute; 
+                top: 50px;
+                left: 0px;    
+                height: 100px;  
+                z-index: 40;   
+                pointer-events: none; 
+                animation: FadeOut 0s linear; 
+                animation-delay: 10s;
+                animation-fill-mode: forwards;
+        }
+
+        .sonicfadein {
+                position: absolute; 
+                top: 15px;
+                left: 40px;    
+                height: 250px;  
+                z-index: 40;   
+                pointer-events: none; 
+                visibility: hidden;
+                animation: 
+                makeVisible 0s linear 10s forwards,
+                sonicRun 2.5s linear 10s forwards;
+        }
+
+        @keyframes FadeOut { to { opacity: 0; visibility: hidden; } }
+        @keyframes sonicRun { to { transform: translateX(120vw); } }
+        @keyframes makeVisible { to { visibility: visible;} }
+
 </style>
 
 <title>Wordle Wannabe</title></head>
 <link rel="icon" type = "image/x-icon" href="/static/favicon.ico">
 <body>
-    <h1>Clay's Wordle-like Game That Is Legally Distinct from Wordle!</h1>
-	<div><img src="/static/dhr-logo.png" alt = "DHR Logo" width = "426px" height = "116px"></div>
+    <img src="/static/sonictap.gif" class="sonicfadeout" width="100">
+    <img src="/static/sonicrun.gif" class="sonicfadein" width="150">
+
+    <div class="logo-container" style="margin-bottom: 20px;">
+        <img src="/static/dhr-logo.png" alt="DHR Logo" width="300">
+    </div>
     
+     <h1>Clay's Legally Distinct Wordle!</h1>
           <button onclick="openPopup()">Rules / How to Play</button>
 
     <div id="myPopup" class="popup">
@@ -152,7 +263,7 @@ td {
             <p>Basically, you get 6 chances to guess a 5 letter word. You're given a hint to try to guide you in the right direction.</p>
             <p>Type a 5 letter word into the box, press Enter (or click "Guess word!), and you'll see how close your guess was.</p>
             <p>Whenever you make a guess, letters that are in the word will be colored <span style = "color: yellow; background-color: black;"><b>YELLOW</b></span>.</p>
-            <p>Letters that are in the word AND in the correct spot in the world will be colored<span style = "color: green;"><b>GREEN</b></span>.</p>
+            <p>Letters that are in the word AND in the correct spot in the word will be colored <span style = "color: green;"><b>GREEN</b></span>.</p>
             <p>You can keep track of what letters you tried with the onscreen keyboard on the bottom of the page. Attempted letters are gray, letters that are in the word are
             yellow, and letters which you've found the correct location for are green.</p>
              <button style= "box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);" onclick="closeRules()">Start playing!</button>
@@ -161,7 +272,7 @@ td {
 
     <h3>HINTS:</h3>
     <div>%s</div><div style = "margin-bottom: 50px;"></div>
-    """ % (display_rules, WordOfDay.HINT)
+    """ % (WordOfDay.HINT, )
 
     QUERY = "SELECT attempts, won FROM wordle WHERE (ip_address = %s AND attempt_date = CURRENT_DATE);"
     DATA = (user_ip, )
@@ -173,12 +284,14 @@ td {
     except: #catches if user has not made any attempts
         user_attempts = 0
         solved = False
+    html_content += '<div class="game-section-card">'
     if user_attempts < 6 and not solved:
         html_content +=  """<form id="myForm" method = "POST" action = "/guess">
 		<label>Guess here: <input autofocus  style="margin-bottom: 50px;" type = "text" id = "myInput" name = "guess" minlength = "5" maxlength="5" onkeypress="return isAlphabet(event)" required></label>
 		<span></span><button type = "submit" id = "myBtn">Guess word!</button>        
         </form>
         """
+    html_content += "<table>"
     attempted_words: list[str] = []
     x = 1
     while x <= user_attempts:
@@ -220,7 +333,7 @@ td {
                         color_4 = "green"
                     case 4:
                         color_5 = "green"
-        html_content += f""" <table>
+        html_content += f"""
                 <tr>
                     <td style="background-color: {color_1}; padding: 5px;" <b> {word[0]}</td>
                     <td style="background-color: {color_2}; padding: 5px;" <b> {word[1]}</td>
@@ -237,7 +350,7 @@ td {
     if user_attempts == 6 and not solved:
         html_content += "</table><div>You ran out of attempts! Try again tomorrow!</div>"
 
-    html_content += """</table>
+    html_content += """</table></div><div class="game-section-card" id="keyboard-stuff">
     <div class="letters">LETTERS TRIED SO FAR
                 <table class="attempted_letters">
     """ 
@@ -266,21 +379,21 @@ td {
     # Uses logic above to determine what color the letter is going to be. By default, they are white. 
     # Probably a better way to do it. I'll figure out a better way soon, I promise!
     for letter in QWERTY[0: 10]:
-        html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;border: 1px;border-color: black;"<b> {letter}</td>'''
     html_content += '<td style ="background-color: white; padding: 0px;"><img src="/static/la jaiba.png" alt = "JAIBA!" width = "25px" height = "25px"> </td></tr>'
     
-    html_content += '<tr><td style="max-width: 5px; background-color: lightgray; padding: 5px; border: 0px;"</td>'
+    html_content += '<tr><td style="max-width: 5px; background-color: white; padding: 5px; border: 0px;"</td>'
 
     for letter in QWERTY[10: 19]: 
-        html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px; border: 1px;border-color: black;"<b> {letter}</td>'''
     html_content += "</tr>"
     
-    html_content += '<tr><td style="background-color: lightgray; padding: 5px; border: 0px;"</td><td style="background-color: lightgray; padding: 5px; border: 0px;"</td>'
+    html_content += '<tr><td style="background-color: white; padding: 5px; border: 0px;"</td><td style="background-color: white; padding: 5px; border: 0px;"</td>'
 
     for letter in QWERTY[19: 27]: 
-        html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;"<b> {letter}</td>'''
+        html_content += f'''<td style ="background-color: {ALPHA_COLORS[letter][0]}; padding: 5px;border: 1px;border-color: black;"<b> {letter}</td>'''
     
-    html_content += """</tr></table>        
+    html_content += """</tr></table>   </div>     
  <script>
         const myInput = document.getElementById('myInput');
         const myForm = document.getElementById('myForm');
@@ -443,8 +556,8 @@ div {
 
 @app.post("/changeword", response_class=HTMLResponse) # actual endpoint and method to update the word and hint etc
 async def change_word(request: Request, word: str = Form(...), hint:str = Form(...)):
-    WordOfDay.TEST_WORD = word.upper()
-    WordOfDay.HINT = hint
+    WordOfDay.TEST_WORD = word.upper() # type: ignore
+    WordOfDay.HINT = hint # type: ignore
     if word.lower() not in WORDS:
         WORDS.append(word.lower())
         with open('WORDS.txt', 'a') as file: #if word isn't in the dictionary, this adds the word to it.

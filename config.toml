@@ -1,5 +1,5 @@
 [credentials]
-host = '10.200.23.11'
+host = '10.200.23.16'
 dbname = 'responses'
 username = 'apps'
 password = 'DHRhealth!#%'
@@ -10,4 +10,9 @@ password = 'DHRhealth!#%'
 3 = "Did I make this too easy?"
 4 = "Lucky guess!"
 5 = "Not bad. Now get back to work!"
-6 = "Heck yeah! Now if only calls were this eays, huh?"
+6 = "Heck yeah! Now if only calls were this easy, huh?"
+7 = "Playing Wordle instead of working? Shame on you."
+8 = "Tell Clay to make this harder next time."
+9 = "Couldn't think of a funny message for this one, sorry."
+10 = "Did you know there's 10 of these messages that show up if you get the word on the first try? Neat, huh?"
+11 = "There's actually 11 of these messages."
