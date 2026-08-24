@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Word</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="update-body">
+    <div class="card" style="max-width: 420px;">
+        {% if not authenticated %}
+        <h1>Admin Access</h1>
+        <p>Enter the PIN to set today's word.</p>
+        {% if error %}
+        <p style="color: #e11d48; font-weight: 600;">{{ error }}</p>
+        {% endif %}
+        <form method="post" action="/updateword">
+            <input type="password" name="pin" maxlength="10" autocomplete="off"
+                   placeholder="PIN" style="width: 100%; text-align: center; font-size: 1.2rem; padding: 12px; border: 2px solid #c2ccd6; border-radius: 10px; margin-bottom: 12px;">
+            <button type="submit" style="width: 100%; padding: 12px; background: #00a9a7; color: #fff; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer;">Unlock</button>
+        </form>
+        {% else %}
+        <h1>Set Word of the Day</h1>
+        <p>Enter the 5-letter answer word and an optional hint.</p>
+        {% if error %}
+        <p style="color: #e11d48; font-weight: 600;">{{ error }}</p>
+        {% endif %}
+        <form method="post" action="/updateword" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+            <input type="text" name="new_word" maxlength="5" autocomplete="off"
+                   placeholder="5-letter word" style="width: 100%; text-transform: uppercase; text-align: center; font-size: 1.3rem; letter-spacing: .5rem; padding: 12px; border: 2px solid #c2ccd6; border-radius: 10px;">
+            <input type="text" name="new_hint" autocomplete="off"
+                   placeholder="Hint (optional)" style="width: 100%; padding: 12px; border: 2px solid #c2ccd6; border-radius: 10px;">
+            <button type="submit" style="width: 100%; padding: 12px; background: #00a9a7; color: #fff; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer;">Set Word & Start</button>
+        </form>
+        {% endif %}
+    </div>
+</body>
+</html>

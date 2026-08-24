@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clay's Legally Distinct Wordle!</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <img class="sonic-topleft" src="/static/sonictap.gif" alt="Sonic">
+    <div class="theme-switch-wrap" title="Toggle dark mode">
+        <span class="theme-icon">☀️</span>
+        <label class="theme-switch">
+            <input type="checkbox" id="themeToggle">
+            <span class="slider"></span>
+        </label>
+        <span class="theme-icon">🌙</span>
+    </div>
+
+    <div class="logo">
+        <img src="/static/dhr-logo.png" alt="DHR Health">
+    </div>
+
+    <h1 class="title">Clay's Legally Distinct Wordle!</h1>
+
+    <button id="rulesBtn" class="rules-btn" type="button">Rules / How to Play</button>
+
+    <div class="hints">
+        <div class="hints-label">HINTS:</div>
+        <div class="hints-text">{{ hint }}</div>
+    </div>
+
+    {% if streak > 0 %}
+    <div class="streak-badge">🔥 {{ streak }} day streak!</div>
+    {% endif %}
+
+    <div class="card game-card">
+        <table class="guess-table">
+            {% for attempt in attempts %}
+            {% set is_last = loop.last %}
+            <tr{% if is_last and just_won %} class="win-row"{% elif is_last and invalid_guess %} class="shake-row"{% endif %}>
+                {% for letter, color in attempt %}
+                <td class="{% if is_last and just_won %}win-bounce{% elif is_last and invalid_guess %} flip{% endif %}" style="background-color: {{ color }}; animation-delay: {{ loop.index0 * 80 }}ms;">{{ letter }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+
+        {% if result_message %}
+        <div class="result-banner" style="color: {{ result_color }};">
+            {{ result_message }}
+        </div>
+        {% endif %}
+
+        {% if not won %}
+        <form id="guessForm" method="post" action="/guess">
+            <input type="text" id="guessInput" name="guess" maxlength="5" autocomplete="off" placeholder="Type...">
+            <button type="submit">Guess</button>
+        </form>
+        {% else %}
+        <button type="button" class="share-btn" id="shareBtn">Copy Results 📋</button>
+        {% endif %}
+    </div>
+
+    <div class="card keyboard-card">
+        <div class="keyboard-label">LETTERS TRIED SO FAR</div>
+        <div class="keyboard">
+            {% for row in keyboard_rows %}
+            <div class="keyboard-row">
+                {% for letter, color in row %}
+                <button type="button" class="key" data-letter="{{ letter }}" style="background-color: {{ color }};">{{ letter }}</button>
+                {% endfor %}
+                {% if loop.first %}
+                <span class="key jaiba"><img src="/static/la%20jaiba.png" alt="La Jaiba"></span>
+                {% endif %}
+                {% if loop.last %}
+                <button type="button" class="key key-backspace" title="Backspace">⌫</button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="rulesPopup" class="popup hidden">
+        <div class="popup-content">
+            <span class="close-button" id="closePopup">&times;</span>
+            <h2>How to Play</h2>
+            <p>Guess the 5-letter word in 6 tries.</p>
+            <ul>
+                <li><span class="legend" style="background-color: {{ correct_color }};"></span> Correct letter, correct spot.</li>
+                <li><span class="legend" style="background-color: #c9b458;"></span> Correct letter, wrong spot.</li>
+                <li><span class="legend" style="background-color: {{ absent_color }};"></span> Letter not in the word.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
